@@ -1,0 +1,22 @@
+{
+  "name": "@smt/config",
+  "version": "0.1.0",
+  "description": "Configuration and environment validation",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "catalog:deps"
+  },
+  "devDependencies": {
+    "typescript": "catalog:deps"
+  }
+}

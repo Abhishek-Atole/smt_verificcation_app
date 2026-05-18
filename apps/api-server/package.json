@@ -1,0 +1,39 @@
+{
+  "name": "@smt/api-server",
+  "version": "0.1.0",
+  "description": "Express API server with Socket.IO real-time",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@smt/api-types": "workspace:*",
+    "@smt/config": "workspace:*",
+    "@smt/db": "workspace:*",
+    "express": "catalog:deps",
+    "socket.io": "catalog:deps",
+    "zod": "catalog:deps",
+    "jsonwebtoken": "catalog:deps",
+    "bcryptjs": "catalog:deps",
+    "pg": "catalog:deps"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@typescript-eslint/eslint-plugin": "^7.4.0",
+    "@typescript-eslint/parser": "^7.4.0",
+    "eslint": "catalog:deps",
+    "prettier": "catalog:deps",
+    "typescript": "catalog:deps",
+    "vitest": "catalog:deps",
+    "tsx": "^4.7.0"
+  }
+}

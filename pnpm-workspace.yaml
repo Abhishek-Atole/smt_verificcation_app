@@ -1,0 +1,19 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+catalogs:
+  deps:
+    typescript: 5.4.5
+    zod: 3.23.8
+    express: 4.18.2
+    socket.io: 4.7.2
+    pg: 8.11.3
+    drizzle-orm: 0.30.10
+    bcryptjs: 2.4.3
+    jsonwebtoken: 9.0.3
+    react: 18.2.0
+    vite: 5.1.6
+    vitest: 1.2.0
+    eslint: 9.0.0
+    prettier: 3.2.5
