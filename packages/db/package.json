@@ -23,6 +23,8 @@
   },
   "devDependencies": {
     "drizzle-kit": "^0.20.14",
-    "typescript": "catalog:deps"
+    "typescript": "catalog:deps",
+    "@types/pg": "catalog:deps",
+    "@types/node": "catalog:deps"
   }
 }
