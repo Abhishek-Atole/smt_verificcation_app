@@ -88,4 +88,7 @@ process.on('SIGINT', () => {
   });
 });
 
+// Export for testing
+export { app, httpServer, io };
+
 startServer();

@@ -36,6 +36,8 @@
     "prettier": "catalog:deps",
     "typescript": "catalog:deps",
     "vitest": "catalog:deps",
-    "tsx": "^4.7.0"
+    "tsx": "^4.7.0",
+    "supertest": "^6.3.3",
+    "@types/supertest": "^2.0.12"
   }
 }
