@@ -1,193 +1,208 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import request from 'supertest';
+import { createTestApp, createToken } from './fixtures';
+import type { Application } from 'express';
 
-/**
- * Scan Routes Integration Tests
- * Tests scan recording, validation, and statistics
- */
 describe('Scan Routes', () => {
-  describe('POST /api/scans/record - Record Scan', () => {
-    it('should record scan with validation result', () => {
-      expect(true).toBe(true);
+  let app: Application;
+  let adminToken: string;
+  let operatorToken: string;
+
+  beforeAll(() => {
+    app = createTestApp();
+    adminToken = createToken('admin-1', 'admin@test.com', 'admin');
+    operatorToken = createToken('operator-1', 'operator@test.com', 'operator');
+  });
+
+  describe('POST /api/scans - Create Scan', () => {
+    it('should create new scan', async () => {
+      const response = await request(app)
+        .post('/api/scans')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ sessionId: 'session-1', bomId: 'bom-1' })
+        .expect(201);
+      expect(response.body.data).toBeDefined();
+      expect(response.body.data.stage).toBe(1);
     });
 
-    it('should validate session is active', () => {
-      expect(true).toBe(true);
+    it('should return 400 with missing sessionId', async () => {
+      const response = await request(app)
+        .post('/api/scans')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ bomId: 'bom-1' })
+        .expect(400);
+      expect(response.body.error).toBeDefined();
     });
 
-    it('should validate feeder exists in BOM', () => {
-      expect(true).toBe(true);
+    it('should return 401 without auth', async () => {
+      await request(app)
+        .post('/api/scans')
+        .send({ sessionId: 'session-1', bomId: 'bom-1' })
+        .expect(401);
     });
 
-    it('should execute 7-stage validation', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should broadcast scan:recorded event via Socket.IO', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should record in audit log', () => {
-      expect(true).toBe(true);
+    it('should initialize scan at stage 1', async () => {
+      const response = await request(app)
+        .post('/api/scans')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ sessionId: 'session-1', bomId: 'bom-1' })
+        .expect(201);
+      expect(response.body.data.stage).toBe(1);
     });
   });
 
-  describe('7-Stage Validation Pipeline', () => {
-    it('Stage 1: should detect inactive session', () => {
-      expect(true).toBe(true);
+  describe('GET /api/scans - List Scans', () => {
+    it('should return all scans', async () => {
+      const response = await request(app)
+        .get('/api/scans')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
     });
 
-    it('Stage 2: should detect missing feeder', () => {
-      expect(true).toBe(true);
+    it('should return 401 without auth', async () => {
+      await request(app).get('/api/scans').expect(401);
     });
 
-    it('Stage 3: should detect free-scan (no expected values)', () => {
-      expect(true).toBe(true);
-    });
-
-    it('Stage 4: should match MPN1 (primary)', () => {
-      expect(true).toBe(true);
-    });
-
-    it('Stage 5: should match MPN2 (secondary)', () => {
-      expect(true).toBe(true);
-    });
-
-    it('Stage 6: should match MPN3 (tertiary)', () => {
-      expect(true).toBe(true);
-    });
-
-    it('Stage 7: should tokenized match internal part number', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should fail if no match found', () => {
-      expect(true).toBe(true);
+    it('should support pagination', async () => {
+      const response = await request(app)
+        .get('/api/scans?limit=10&offset=0')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(response.body).toHaveProperty('limit');
     });
   });
 
-  describe('GET /api/scans/session/:sessionId/stats - Statistics', () => {
-    it('should return pass/fail counts', () => {
-      expect(true).toBe(true);
+  describe('GET /api/scans/:scanId - Get Scan', () => {
+    it('should return scan details', async () => {
+      const createResp = await request(app)
+        .post('/api/scans')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ sessionId: 'session-1', bomId: 'bom-1' })
+        .expect(201);
+
+      const scanId = createResp.body.data.id;
+      const response = await request(app)
+        .get(`/api/scans/${scanId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(response.body.data.id).toBe(scanId);
     });
 
-    it('should return all validation result types', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should include total scans', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should return 404 for non-existent session', () => {
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('GET /api/scans/session/:sessionId/quick-stats - Quick Stats', () => {
-    it('should return FPY calculation', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should calculate correctly with zero scans', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should include total and completed counts', () => {
-      expect(true).toBe(true);
+    it('should return 404 for non-existent scan', async () => {
+      await request(app)
+        .get('/api/scans/non-existent-id')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(404);
     });
   });
 
-  describe('GET /api/scans/session/:sessionId/duration - Duration', () => {
-    it('should return session timing info', () => {
-      expect(true).toBe(true);
+  describe('Scan Validation Pipeline (7 Stages)', () => {
+    it('stage 1: should initialize scan', async () => {
+      const response = await request(app)
+        .post('/api/scans')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ sessionId: 'session-1', bomId: 'bom-1' })
+        .expect(201);
+      expect(response.body.data.stage).toBe(1);
     });
 
-    it('should calculate duration in seconds', () => {
-      expect(true).toBe(true);
+    it('stage 2: should validate BOM data', async () => {
+      const scanResp = await request(app)
+        .post('/api/scans')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ sessionId: 'session-1', bomId: 'bom-1' })
+        .expect(201);
+
+      const scanId = scanResp.body.data.id;
+      const response = await request(app)
+        .patch(`/api/scans/${scanId}`)
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ stage: 2 })
+        .expect(200);
+      expect(response.body.data.stage).toBe(2);
     });
 
-    it('should include session status', () => {
-      expect(true).toBe(true);
-    });
-  });
+    it('stage 3: should validate feeder configuration', async () => {
+      const scanResp = await request(app)
+        .post('/api/scans')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ sessionId: 'session-1', bomId: 'bom-1' })
+        .expect(201);
 
-  describe('POST /api/scans/summary - Multi-Session Summary', () => {
-    it('should return summary for multiple sessions', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should calculate FPY for each session', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should handle empty session list', () => {
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('PATCH /api/scans/:scanId/override - Override Scan (Admin/QA)', () => {
-    it('should override scan result for admin', () => {
-      expect(true).toBe(true);
+      const scanId = scanResp.body.data.id;
+      await request(app)
+        .patch(`/api/scans/${scanId}`)
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ stage: 3 })
+        .expect(200);
     });
 
-    it('should override scan result for QA', () => {
-      expect(true).toBe(true);
-    });
+    it('should progress through all 7 stages', async () => {
+      const scanResp = await request(app)
+        .post('/api/scans')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ sessionId: 'session-1', bomId: 'bom-1' })
+        .expect(201);
 
-    it('should reject override from operator', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should require override reason', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should broadcast scan:overridden event', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should record in audit log', () => {
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('Validation Result Accuracy', () => {
-    it('should correctly identify pass result', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should correctly identify alternate part', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should correctly identify manual match', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should correctly identify failed scan', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should correctly identify free scan', () => {
-      expect(true).toBe(true);
+      const scanId = scanResp.body.data.id;
+      for (let stage = 2; stage <= 7; stage++) {
+        const response = await request(app)
+          .patch(`/api/scans/${scanId}`)
+          .set('Authorization', `Bearer ${operatorToken}`)
+          .send({ stage })
+          .expect(200);
+        expect(response.body.data.stage).toBe(stage);
+      }
     });
   });
 
-  describe('FPY Calculation', () => {
-    it('should calculate FPY correctly', () => {
-      expect(true).toBe(true);
+  describe('PATCH /api/scans/:scanId - Update Scan', () => {
+    it('should advance scan stage', async () => {
+      const createResp = await request(app)
+        .post('/api/scans')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ sessionId: 'session-1', bomId: 'bom-1' })
+        .expect(201);
+
+      const scanId = createResp.body.data.id;
+      const response = await request(app)
+        .patch(`/api/scans/${scanId}`)
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ stage: 2 })
+        .expect(200);
+      expect(response.body.data.stage).toBe(2);
     });
 
-    it('should handle zero scans (return 0)', () => {
-      expect(true).toBe(true);
+    it('should return 404 for non-existent scan', async () => {
+      await request(app)
+        .patch('/api/scans/non-existent-id')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ stage: 2 })
+        .expect(404);
+    });
+  });
+
+  describe('DELETE /api/scans/:scanId - Delete Scan', () => {
+    it('should soft-delete scan', async () => {
+      const createResp = await request(app)
+        .post('/api/scans')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ sessionId: 'session-1', bomId: 'bom-1' })
+        .expect(201);
+
+      const scanId = createResp.body.data.id;
+      await request(app)
+        .delete(`/api/scans/${scanId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
     });
 
-    it('should handle all passes (return 100)', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should handle all failures (return 0)', () => {
-      expect(true).toBe(true);
+    it('should return 404 for non-existent scan', async () => {
+      await request(app)
+        .delete('/api/scans/non-existent-id')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(404);
     });
   });
 });

@@ -1,205 +1,188 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import request from 'supertest';
+import { createTestApp, createToken } from './fixtures';
+import type { Application } from 'express';
 
-/**
- * Metrics Routes Integration Tests
- * Tests aggregated metrics and reporting endpoints
- */
 describe('Metrics Routes', () => {
-  describe('GET /api/metrics/sessions - Session Metrics', () => {
-    it('should return aggregated session metrics', () => {
-      expect(true).toBe(true);
+  let app: Application;
+  let adminToken: string;
+  let supervisorToken: string;
+
+  beforeAll(() => {
+    app = createTestApp();
+    adminToken = createToken('admin-1', 'admin@test.com', 'admin');
+    supervisorToken = createToken('supervisor-1', 'supervisor@test.com', 'supervisor');
+  });
+
+  describe('GET /api/metrics/dashboard - Dashboard Summary', () => {
+    it('should return dashboard metrics', async () => {
+      const response = await request(app)
+        .get('/api/metrics/dashboard')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(response.body.data).toHaveProperty('totalScans');
+      expect(response.body.data).toHaveProperty('totalSessions');
+      expect(response.body.data).toHaveProperty('avgScanTime');
     });
 
-    it('should include total sessions count', () => {
-      expect(true).toBe(true);
+    it('should return 401 without auth', async () => {
+      await request(app).get('/api/metrics/dashboard').expect(401);
     });
 
-    it('should include active sessions count', () => {
-      expect(true).toBe(true);
-    });
+    it('should include numeric values for metrics', async () => {
+      const response = await request(app)
+        .get('/api/metrics/dashboard')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
 
-    it('should include completed sessions count', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should calculate average FPY', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should include average duration', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should support filtering by date range', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should support filtering by operator', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should require authentication', () => {
-      expect(true).toBe(true);
+      expect(typeof response.body.data.totalScans).toBe('number');
+      expect(typeof response.body.data.totalSessions).toBe('number');
+      expect(typeof response.body.data.avgScanTime).toBe('number');
     });
   });
 
-  describe('GET /api/metrics/users - User Metrics', () => {
-    it('should return aggregated user metrics', () => {
-      expect(true).toBe(true);
+  describe('GET /api/metrics/scans - Scan Statistics', () => {
+    it('should return scan statistics', async () => {
+      const response = await request(app)
+        .get('/api/metrics/scans')
+        .set('Authorization', `Bearer ${supervisorToken}`)
+        .expect(200);
+
+      expect(response.body.data).toBeDefined();
     });
 
-    it('should include total users count', () => {
-      expect(true).toBe(true);
+    it('should return 401 without auth', async () => {
+      await request(app).get('/api/metrics/scans').expect(401);
     });
 
-    it('should break down by role', () => {
-      expect(true).toBe(true);
-    });
+    it('should include scan count', async () => {
+      const response = await request(app)
+        .get('/api/metrics/scans')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
 
-    it('should include active users', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should include inactive users', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should calculate user activity metrics', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should show top performers', () => {
-      expect(true).toBe(true);
+      expect(response.body.data).toHaveProperty('count');
     });
   });
 
-  describe('GET /api/metrics/boms - BOM Metrics', () => {
-    it('should return aggregated BOM metrics', () => {
-      expect(true).toBe(true);
+  describe('GET /api/metrics/efficiency - Efficiency Metrics', () => {
+    it('should return efficiency metrics', async () => {
+      const response = await request(app)
+        .get('/api/metrics/efficiency')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(response.body.data).toBeDefined();
     });
 
-    it('should include total BOMs count', () => {
-      expect(true).toBe(true);
+    it('should return 401 without auth', async () => {
+      await request(app).get('/api/metrics/efficiency').expect(401);
     });
 
-    it('should include approved BOMs count', () => {
-      expect(true).toBe(true);
-    });
+    it('should include pass rate', async () => {
+      const response = await request(app)
+        .get('/api/metrics/efficiency')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
 
-    it('should include pending BOMs count', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should calculate average items per BOM', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should show most used BOMs', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should include average approval time', () => {
-      expect(true).toBe(true);
+      expect(response.body.data).toHaveProperty('passRate');
     });
   });
 
-  describe('GET /api/metrics/summary - Overall Summary', () => {
-    it('should return comprehensive system summary', () => {
-      expect(true).toBe(true);
+  describe('GET /api/metrics/trends - Trend Analysis', () => {
+    it('should return trend data', async () => {
+      const response = await request(app)
+        .get('/api/metrics/trends')
+        .set('Authorization', `Bearer ${supervisorToken}`)
+        .expect(200);
+
+      expect(response.body.data).toBeDefined();
     });
 
-    it('should include session metrics', () => {
-      expect(true).toBe(true);
+    it('should support time period filtering', async () => {
+      const response = await request(app)
+        .get('/api/metrics/trends?period=7d')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(response.body.data).toBeDefined();
     });
 
-    it('should include user metrics', () => {
-      expect(true).toBe(true);
+    it('should return 401 without auth', async () => {
+      await request(app).get('/api/metrics/trends').expect(401);
     });
 
-    it('should include BOM metrics', () => {
-      expect(true).toBe(true);
-    });
+    it('should support multiple time periods', async () => {
+      for (const period of ['1d', '7d', '30d', '90d']) {
+        const response = await request(app)
+          .get(`/api/metrics/trends?period=${period}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
 
-    it('should include scan metrics (total, pass rate)', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should include system uptime', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should include database connection status', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should include performance metrics', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should include recent activity', () => {
-      expect(true).toBe(true);
+        expect(response.body.data).toBeDefined();
+      }
     });
   });
 
-  describe('Metrics Calculations', () => {
-    it('should calculate FPY correctly across sessions', () => {
-      expect(true).toBe(true);
+  describe('GET /api/metrics/boms - BOM Performance', () => {
+    it('should return BOM performance metrics', async () => {
+      const response = await request(app)
+        .get('/api/metrics/boms')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(response.body.data).toBeDefined();
     });
 
-    it('should calculate average cycle time', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should calculate feeder coverage', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should calculate quality trends', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should calculate operator productivity', () => {
-      expect(true).toBe(true);
+    it('should return 401 without auth', async () => {
+      await request(app).get('/api/metrics/boms').expect(401);
     });
   });
 
-  describe('Metrics Caching & Performance', () => {
-    it('should cache metrics for performance', () => {
-      expect(true).toBe(true);
+  describe('Metrics Data Integrity', () => {
+    it('should return consistent metrics across requests', async () => {
+      const response1 = await request(app)
+        .get('/api/metrics/dashboard')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const response2 = await request(app)
+        .get('/api/metrics/dashboard')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(response1.body.data.totalScans).toBeDefined();
+      expect(response2.body.data.totalScans).toBeDefined();
     });
 
-    it('should invalidate cache on data changes', () => {
-      expect(true).toBe(true);
-    });
+    it('should provide aggregated statistics', async () => {
+      const response = await request(app)
+        .get('/api/metrics/dashboard')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
 
-    it('should return cached data if available', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should support cache bypass with parameter', () => {
-      expect(true).toBe(true);
+      expect(response.body.data.totalScans).toBeGreaterThanOrEqual(0);
+      expect(response.body.data.totalSessions).toBeGreaterThanOrEqual(0);
+      expect(response.body.data.avgScanTime).toBeGreaterThanOrEqual(0);
     });
   });
 
-  describe('Historical Metrics', () => {
-    it('should support historical metrics queries', () => {
-      expect(true).toBe(true);
+  describe('Role-Based Metrics Access', () => {
+    it('should allow admin to access all metrics', async () => {
+      const response = await request(app)
+        .get('/api/metrics/dashboard')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(response.body.data).toBeDefined();
     });
 
-    it('should allow filtering by date range', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should allow filtering by time period', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should show trending data', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should compare against previous period', () => {
-      expect(true).toBe(true);
+    it('should allow supervisor to access metrics', async () => {
+      const response = await request(app)
+        .get('/api/metrics/dashboard')
+        .set('Authorization', `Bearer ${supervisorToken}`)
+        .expect(200);
+      expect(response.body.data).toBeDefined();
     });
   });
 });

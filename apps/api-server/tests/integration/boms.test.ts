@@ -1,158 +1,210 @@
-import { describe, it, expect } from 'vitest';
-import { testUsers, testFixtures } from '../fixtures';
+import { describe, it, expect, beforeAll } from 'vitest';
+import request from 'supertest';
+import { createTestApp, createToken } from './fixtures';
+import type { Application } from 'express';
 
-/**
- * BOM Routes Integration Tests
- * Tests BOM creation, modification, and item management
- */
 describe('BOM Routes', () => {
+  let app: Application;
+  let adminToken: string;
+  let supervisorToken: string;
+  let operatorToken: string;
+
+  beforeAll(() => {
+    app = createTestApp();
+    adminToken = createToken('admin-1', 'admin@test.com', 'admin');
+    supervisorToken = createToken('supervisor-1', 'supervisor@test.com', 'supervisor');
+    operatorToken = createToken('operator-1', 'operator@test.com', 'operator');
+  });
+
   describe('POST /api/boms - Create BOM', () => {
-    it('should create BOM with valid data', () => {
-      expect(true).toBe(true);
+    it('should create new BOM with valid data', async () => {
+      const response = await request(app)
+        .post('/api/boms')
+        .set('Authorization', `Bearer ${supervisorToken}`)
+        .send({ name: 'PCB Assembly v1.0', description: 'Main control board' })
+        .expect(201);
+      expect(response.body.data).toBeDefined();
     });
 
-    it('should reject duplicate part number', () => {
-      expect(true).toBe(true);
+    it('should return 400 with missing required fields', async () => {
+      const response = await request(app)
+        .post('/api/boms')
+        .set('Authorization', `Bearer ${supervisorToken}`)
+        .send({ description: 'Missing name' })
+        .expect(400);
+      expect(response.body.error).toBeDefined();
     });
 
-    it('should set creator to authenticated user', () => {
-      expect(true).toBe(true);
+    it('should return 401 for unauthorized operator', async () => {
+      await request(app)
+        .post('/api/boms')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ name: 'Test BOM' })
+        .expect(401);
     });
 
-    it('should record audit log', () => {
-      expect(true).toBe(true);
+    it('should include createdAt timestamp', async () => {
+      const response = await request(app)
+        .post('/api/boms')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'Timestamped BOM', description: 'Check timestamp' })
+        .expect(201);
+      expect(response.body.data.createdAt).toBeDefined();
     });
   });
 
   describe('GET /api/boms - List BOMs', () => {
-    it('should return all active BOMs', () => {
-      expect(true).toBe(true);
+    it('should return all BOMs', async () => {
+      const response = await request(app)
+        .get('/api/boms')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
     });
 
-    it('should exclude soft-deleted BOMs', () => {
-      expect(true).toBe(true);
+    it('should support pagination', async () => {
+      const response = await request(app)
+        .get('/api/boms?limit=2&offset=0')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(response.body.limit).toBe(2);
     });
 
-    it('should support filtering by approval status', () => {
-      expect(true).toBe(true);
+    it('should enforce maximum limit of 100', async () => {
+      const response = await request(app)
+        .get('/api/boms?limit=500')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(response.body.limit).toBeLessThanOrEqual(100);
     });
 
-    it('should support pagination', () => {
-      expect(true).toBe(true);
+    it('should return 401 without auth token', async () => {
+      await request(app).get('/api/boms').expect(401);
+    });
+
+    it('should allow operator to list BOMs', async () => {
+      const response = await request(app)
+        .get('/api/boms')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
     });
   });
 
-  describe('GET /api/boms/:bomId - Get BOM', () => {
-    it('should return full BOM with items', () => {
-      expect(true).toBe(true);
+  describe('GET /api/boms/:bomId - Get BOM Details', () => {
+    it('should return BOM with items', async () => {
+      const createResp = await request(app)
+        .post('/api/boms')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'BOM with items', description: 'Test' })
+        .expect(201);
+
+      const bomId = createResp.body.data.id;
+      const response = await request(app)
+        .get(`/api/boms/${bomId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(response.body.data.id).toBe(bomId);
     });
 
-    it('should return 404 for non-existent BOM', () => {
-      expect(true).toBe(true);
+    it('should return 404 for non-existent BOM', async () => {
+      await request(app)
+        .get('/api/boms/non-existent-id')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(404);
     });
 
-    it('should include item count', () => {
-      expect(true).toBe(true);
+    it('should return 401 without auth token', async () => {
+      await request(app).get('/api/boms/some-id').expect(401);
     });
   });
 
-  describe('PUT /api/boms/:bomId - Update BOM', () => {
-    it('should update BOM data', () => {
-      expect(true).toBe(true);
+  describe('PATCH /api/boms/:bomId - Update BOM', () => {
+    it('should update BOM with valid data', async () => {
+      const createResp = await request(app)
+        .post('/api/boms')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'Original Name', description: 'Original desc' })
+        .expect(201);
+
+      const bomId = createResp.body.data.id;
+      const response = await request(app)
+        .patch(`/api/boms/${bomId}`)
+        .set('Authorization', `Bearer ${supervisorToken}`)
+        .send({ name: 'Updated Name' })
+        .expect(200);
+      expect(response.body.data.name).toBe('Updated Name');
     });
 
-    it('should increment version on update', () => {
-      expect(true).toBe(true);
+    it('should return 404 for non-existent BOM', async () => {
+      await request(app)
+        .patch('/api/boms/non-existent-id')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'New name' })
+        .expect(404);
     });
 
-    it('should record audit log with old/new values', () => {
-      expect(true).toBe(true);
+    it('should return 401 without auth token', async () => {
+      await request(app)
+        .patch('/api/boms/some-id')
+        .send({ name: 'New name' })
+        .expect(401);
     });
   });
 
   describe('DELETE /api/boms/:bomId - Delete BOM', () => {
-    it('should soft-delete BOM', () => {
-      expect(true).toBe(true);
+    it('should soft-delete BOM', async () => {
+      const createResp = await request(app)
+        .post('/api/boms')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'To Delete', description: 'Will be deleted' })
+        .expect(201);
+
+      const bomId = createResp.body.data.id;
+      const response = await request(app)
+        .delete(`/api/boms/${bomId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(response.body.data.isDeleted).toBe(true);
     });
 
-    it('should prevent deletion of used BOM', () => {
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('POST /api/boms/:bomId/items - Add Item', () => {
-    it('should add feeder item to BOM', () => {
-      expect(true).toBe(true);
+    it('should return 404 for non-existent BOM', async () => {
+      await request(app)
+        .delete('/api/boms/non-existent-id')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(404);
     });
 
-    it('should validate feeder slot uniqueness', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should support MPN alternates (MPN2, MPN3)', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should allow free-scan items (no MPNs)', () => {
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('GET /api/boms/:bomId/items - List Items', () => {
-    it('should return all BOM items', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should include feeder details', () => {
-      expect(true).toBe(true);
+    it('should return 401 without auth token', async () => {
+      await request(app).delete('/api/boms/some-id').expect(401);
     });
   });
 
-  describe('PUT /api/boms/:bomId/items/:itemId - Update Item', () => {
-    it('should update feeder item', () => {
-      expect(true).toBe(true);
+  describe('Role-Based BOM Access', () => {
+    it('should allow admin to manage BOMs', async () => {
+      const response = await request(app)
+        .post('/api/boms')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'Admin BOM', description: 'test' })
+        .expect(201);
+      expect(response.body.data).toBeDefined();
     });
 
-    it('should reject duplicate feeder slot', () => {
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('DELETE /api/boms/:bomId/items/:itemId - Delete Item', () => {
-    it('should soft-delete item', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should allow deletion of unused items', () => {
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('POST /api/boms/:bomId/approve - Approve BOM', () => {
-    it('should set approvedBy and approvedAt (admin only)', () => {
-      expect(true).toBe(true);
+    it('should allow supervisor to create BOMs', async () => {
+      const response = await request(app)
+        .post('/api/boms')
+        .set('Authorization', `Bearer ${supervisorToken}`)
+        .send({ name: 'Supervisor BOM', description: 'test' })
+        .expect(201);
+      expect(response.body.data).toBeDefined();
     });
 
-    it('should reject non-admin approval', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should record approval in audit log', () => {
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('BOM Business Logic', () => {
-    it('should calculate item count correctly', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should enforce no duplicate feeder slots', () => {
-      expect(true).toBe(true);
-    });
-
-    it('should track version history', () => {
-      expect(true).toBe(true);
+    it('should deny operator from creating BOMs', async () => {
+      await request(app)
+        .post('/api/boms')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ name: 'Operator BOM', description: 'test' })
+        .expect(401);
     });
   });
 });
