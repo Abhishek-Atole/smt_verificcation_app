@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { verify } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import { env } from '@smt/config';
 import { AuthPayload } from '@smt/api-types';
 import { AuthError } from '../errors';
@@ -21,7 +21,7 @@ export function initializeSocketIO(io: Server<any, any, any, SocketData>): void 
         throw new AuthError('No authentication token provided');
       }
 
-      const payload = verify(token, env.JWT_SECRET) as AuthPayload;
+      const payload = jwt.verify(token, env.JWT_SECRET) as AuthPayload;
 
       socket.data.userId = payload.userId;
       socket.data.userEmail = payload.email;

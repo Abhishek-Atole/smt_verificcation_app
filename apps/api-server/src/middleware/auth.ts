@@ -1,5 +1,5 @@
 import { NextFunction, Response, Request } from 'express';
-import { verify } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import { env } from '@smt/config';
 import { AuthPayload } from '@smt/api-types';
 import { AuthError } from '../errors';
@@ -18,7 +18,7 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
     }
 
     const token = parts[1];
-    const payload = verify(token, env.JWT_SECRET) as AuthPayload;
+    const payload = jwt.verify(token, env.JWT_SECRET) as AuthPayload;
 
     req.userId = payload.userId;
     req.userEmail = payload.email;
@@ -52,7 +52,7 @@ export function optionalAuthMiddleware(req: Request & any, _res: Response, next:
     }
 
     const token = parts[1];
-    const payload = verify(token, env.JWT_SECRET) as AuthPayload;
+    const payload = jwt.verify(token, env.JWT_SECRET) as AuthPayload;
 
     req.userId = payload.userId;
     req.userEmail = payload.email;
