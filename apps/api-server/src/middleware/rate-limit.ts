@@ -1,5 +1,4 @@
-import { NextFunction, Response } from 'express';
-import { Request } from '@smt/api-types';
+import { NextFunction, Response, Request } from 'express';
 
 interface RateLimitEntry {
   count: number;

@@ -8,6 +8,8 @@ import usersRouter from './routes/users';
 import bomsRouter from './routes/boms';
 import sessionsRouter from './routes/sessions';
 import metricsRouter from './routes/metrics';
+import scansRouter from './routes/scans';
+import auditRouter from './routes/audit';
 import { rateLimitMiddleware } from './middleware/rate-limit';
 import { requestLoggerMiddleware } from './middleware/request-logger';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
@@ -29,7 +31,7 @@ app.use(requestLoggerMiddleware);
 app.use(rateLimitMiddleware);
 
 // Store IO instance for routes
-app.set('io', io);
+app.set('io', io as any);
 
 // Initialize Socket.IO
 initializeSocketIO(io);
@@ -40,6 +42,8 @@ app.use('/api/users', usersRouter);
 app.use('/api/boms', bomsRouter);
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/metrics', metricsRouter);
+app.use('/api/scans', scansRouter);
+app.use('/api/audit', auditRouter);
 
 // 404 handler
 app.use(notFoundHandler);

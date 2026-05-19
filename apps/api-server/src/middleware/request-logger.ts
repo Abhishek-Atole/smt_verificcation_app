@@ -1,5 +1,4 @@
-import { NextFunction, Response } from 'express';
-import { Request } from '@smt/api-types';
+import { NextFunction, Response, Request } from 'express';
 import { getCurrentTimestamp } from '../utils';
 
 interface RequestLog {
@@ -12,7 +11,7 @@ interface RequestLog {
   ipHash?: string;
 }
 
-export function requestLoggerMiddleware(req: Request & any, res: Response, next: NextFunction): void {
+export function requestLoggerMiddleware(req: Request, res: Response, next: NextFunction): void {
   const startTime = Date.now();
 
   // Capture original send

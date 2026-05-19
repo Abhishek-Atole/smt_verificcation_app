@@ -1,11 +1,11 @@
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import { env } from '@smt/config';
 import { AppError, InternalError } from '../errors';
-import { ErrorResponse, Request } from '@smt/api-types';
+import { ErrorResponse } from '@smt/api-types';
 
 export function errorHandler(
   error: Error,
-  _req: Request & any,
+  _req: Request,
   res: Response
 ): void {
   console.error('Error:', error);

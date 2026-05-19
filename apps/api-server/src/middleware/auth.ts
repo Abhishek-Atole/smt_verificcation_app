@@ -1,10 +1,10 @@
-import { NextFunction, Response } from 'express';
+import { NextFunction, Response, Request } from 'express';
 import { verify } from 'jsonwebtoken';
 import { env } from '@smt/config';
-import { AuthPayload, Request } from '@smt/api-types';
+import { AuthPayload } from '@smt/api-types';
 import { AuthError } from '../errors';
 
-export function authMiddleware(req: Request & any, _res: Response, next: NextFunction): void {
+export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
   try {
     const authHeader = req.headers.authorization;
 

@@ -1,8 +1,7 @@
-import { NextFunction, Response } from 'express';
+import { NextFunction, Response, Request } from 'express';
 import { env } from '@smt/config';
 import { ForbiddenError } from '../errors';
 import { hashIP, extractIPAddress } from '../utils';
-import { Request } from '@smt/api-types';
 
 // In-memory allowlist (in production, would reload from DB periodically)
 const allowedIPs = new Set<string>();
