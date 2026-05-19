@@ -4,7 +4,10 @@ import { Server as SocketIOServer } from 'socket.io';
 import { env } from '@smt/config';
 import { initializeSocketIO } from './realtime/socket-server';
 import { healthRouter } from './routes/health';
-import { authMiddleware, requireRole } from './middleware/auth';
+import usersRouter from './routes/users';
+import bomsRouter from './routes/boms';
+import sessionsRouter from './routes/sessions';
+import metricsRouter from './routes/metrics';
 import { rateLimitMiddleware } from './middleware/rate-limit';
 import { requestLoggerMiddleware } from './middleware/request-logger';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
@@ -25,16 +28,18 @@ app.use(express.urlencoded({ extended: true }));
 app.use(requestLoggerMiddleware);
 app.use(rateLimitMiddleware);
 
+// Store IO instance for routes
+app.set('io', io);
+
 // Initialize Socket.IO
 initializeSocketIO(io);
 
 // Routes
-app.use('/api', healthRouter);
-
-// Protected routes example (for future use)
-app.get('/api/admin/config', authMiddleware, requireRole('admin'), (_req, res) => {
-  res.json({ message: 'Admin config endpoint' });
-});
+app.use('/api/health', healthRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/boms', bomsRouter);
+app.use('/api/sessions', sessionsRouter);
+app.use('/api/metrics', metricsRouter);
 
 // 404 handler
 app.use(notFoundHandler);

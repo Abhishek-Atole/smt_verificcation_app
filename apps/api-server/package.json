@@ -22,7 +22,8 @@
     "zod": "catalog:deps",
     "jsonwebtoken": "catalog:deps",
     "bcryptjs": "catalog:deps",
-    "pg": "catalog:deps"
+    "pg": "catalog:deps",
+    "drizzle-orm": "catalog:deps"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

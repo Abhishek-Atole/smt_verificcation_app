@@ -5,7 +5,7 @@ import { HealthResponse, Request } from '@smt/api-types';
 
 export const healthRouter = Router();
 
-healthRouter.get('/health', optionalAuthMiddleware, async (_req: Request & any, res: Response) => {
+healthRouter.get('/', optionalAuthMiddleware, async (_req: Request & any, res: Response) => {
   try {
     const uptime = process.uptime();
 
