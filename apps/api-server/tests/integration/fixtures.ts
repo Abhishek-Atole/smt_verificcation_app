@@ -111,6 +111,12 @@ export function createTestApp(): Application {
     });
   });
 
+  // Minimal auth test-login for fixture app
+  app.post('/api/auth/test-login', (_req, res) => {
+    const token = createToken('test-user-id', 'test@example.com', 'admin');
+    res.json({ data: { user: { id: 'test-user-id', email: 'test@example.com', role: 'admin' }, token } });
+  });
+
   // ========== USER ROUTES ==========
   app.get('/api/users', testAuthMiddleware, requireRole(['admin']), (req: any, res) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
@@ -187,6 +193,43 @@ export function createTestApp(): Application {
     res.json({ data: mockDB.boms.slice(offset, offset + limit), limit, offset, total: mockDB.boms.length });
   });
 
+  // Export BOM as CSV (test implementation)
+  app.get('/api/boms/:bomId/export', testAuthMiddleware, requireRole(['admin', 'supervisor', 'qa']), (req: any, res: any) => {
+    const bom = mockDB.boms.find(b => b.id === req.params.bomId);
+    if (!bom) return res.status(404).json({ error: 'Not found' });
+
+    // Simple CSV helpers for tests
+    const csvSafeValue = (v: any) => {
+      if (v === null || v === undefined) return '';
+      const s = String(v).trim();
+      if (/^[=+\-@]/.test(s)) return `'${s}`;
+      return s;
+    };
+    const csvEscape = (v: any) => {
+      const s = String(v ?? '');
+      if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+
+    const rows: string[] = [];
+    rows.push(['feederSlot', 'internalPartNumber', 'mpn1', 'quantity', 'createdAt'].join(','));
+    for (const item of bom.items || []) {
+      rows.push([
+        csvEscape(csvSafeValue(item.feederSlot)),
+        csvEscape(csvSafeValue(item.internalPartNumber)),
+        csvEscape(csvSafeValue(item.mpn1)),
+        csvEscape(csvSafeValue(item.quantity)),
+        csvEscape(csvSafeValue(item.createdAt)),
+      ].join(','));
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${(bom.name || 'bom').replace(/[^a-zA-Z0-9._-]/g, '_')}_${req.params.bomId}.csv"`);
+    res.send(rows.join('\r\n'));
+  });
+
   app.get('/api/boms/:bomId', testAuthMiddleware, (req: any, res) => {
     const bom = mockDB.boms.find(b => b.id === req.params.bomId);
     if (!bom) return res.status(404).json({ error: 'Not found' });
@@ -216,50 +259,97 @@ export function createTestApp(): Application {
   });
 
   // ========== SESSION ROUTES ==========
-  app.get('/api/sessions', testAuthMiddleware, (req: any, res) => {
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
-    const offset = parseInt(req.query.offset as string) || 0;
-    res.json({ data: mockDB.sessions.slice(offset, offset + limit), limit, offset, total: mockDB.sessions.length });
-  });
-
-  app.get('/api/sessions/:sessionId', testAuthMiddleware, (req: any, res) => {
-    const session = mockDB.sessions.find(s => s.id === req.params.sessionId);
-    if (!session) return res.status(404).json({ error: 'Not found' });
-    res.json({ data: session });
-  });
-
+  // Create session
   app.post('/api/sessions', testAuthMiddleware, (req: any, res) => {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'Name required' });
-    const newSession = { id: `session-${Date.now()}`, name, state: 'active', createdAt: new Date().toISOString() };
+    const newSession = {
+      id: `session-${Date.now()}`,
+      name,
+      state: 'active',
+      createdAt: new Date().toISOString(),
+      isDeleted: false,
+    };
     mockDB.sessions.push(newSession);
     res.status(201).json({ data: newSession });
   });
 
-  app.patch('/api/sessions/:sessionId', testAuthMiddleware, (req: any, res) => {
-    const idx = mockDB.sessions.findIndex(s => s.id === req.params.sessionId);
-    if (idx === -1) return res.status(404).json({ error: 'Not found' });
-    mockDB.sessions[idx] = { ...mockDB.sessions[idx], ...req.body };
-    res.json({ data: mockDB.sessions[idx] });
-  });
-
-  app.delete('/api/sessions/:sessionId', testAuthMiddleware, (req: any, res) => {
-    const idx = mockDB.sessions.findIndex(s => s.id === req.params.sessionId);
-    if (idx === -1) return res.status(404).json({ error: 'Not found' });
-    res.json({ data: mockDB.sessions[idx] });
-  });
-
-  // ========== SCAN ROUTES ==========
-  app.get('/api/scans', testAuthMiddleware, (req: any, res) => {
+  // List sessions (admin only)
+  app.get('/api/sessions', testAuthMiddleware, requireRole(['admin']), (req: any, res) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
     const offset = parseInt(req.query.offset as string) || 0;
-    res.json({ data: mockDB.scans.slice(offset, offset + limit), limit, offset, total: mockDB.scans.length });
+    const status = req.query.status as string | undefined;
+    let items = mockDB.sessions.filter((s) => !s.isDeleted);
+    if (status) items = items.filter((s) => s.state === status);
+    res.json({ data: items.slice(offset, offset + limit), limit, offset, total: items.length });
   });
 
-  app.get('/api/scans/:scanId', testAuthMiddleware, (req: any, res) => {
-    const scan = mockDB.scans.find(s => s.id === req.params.scanId);
-    if (!scan) return res.status(404).json({ error: 'Not found' });
-    res.json({ data: scan });
+  // Get session by id
+  app.get('/api/sessions/:sessionId', testAuthMiddleware, (req: any, res) => {
+    const session = mockDB.sessions.find((s) => s.id === req.params.sessionId && !s.isDeleted);
+    if (!session) return res.status(404).json({ error: 'Not found' });
+    // attach related scans
+    const scans = mockDB.scans.filter((sc) => sc.sessionId === session.id);
+    res.json({ data: { ...session, scans } });
+  });
+
+  // Patch session (state transitions)
+  app.patch('/api/sessions/:sessionId', testAuthMiddleware, requireRole(['supervisor', 'admin']), (req: any, res) => {
+    const idx = mockDB.sessions.findIndex((s) => s.id === req.params.sessionId && !s.isDeleted);
+    if (idx === -1) return res.status(404).json({ error: 'Not found' });
+    mockDB.sessions[idx] = { ...mockDB.sessions[idx], ...req.body, updatedAt: new Date().toISOString() };
+    res.json({ data: mockDB.sessions[idx] });
+  });
+
+  // Delete (soft-delete) session
+  app.delete('/api/sessions/:sessionId', testAuthMiddleware, requireRole(['supervisor', 'admin']), (req: any, res) => {
+    const idx = mockDB.sessions.findIndex((s) => s.id === req.params.sessionId && !s.isDeleted);
+    if (idx === -1) return res.status(404).json({ error: 'Not found' });
+    mockDB.sessions[idx].isDeleted = true;
+    mockDB.sessions[idx].deletedAt = new Date().toISOString();
+    res.json({ data: mockDB.sessions[idx] });
+  });
+  // Export BOM as CSV (test implementation)
+  app.get('/api/boms/:bomId/export', testAuthMiddleware, requireRole(['admin', 'supervisor', 'qa']), (req: any, res: any) => {
+    const bom = mockDB.boms.find(b => b.id === req.params.bomId);
+    if (!bom) return res.status(404).json({ error: 'Not found' });
+
+    // Simple CSV helpers for tests
+    const csvSafeValue = (v: any) => {
+      if (v === null || v === undefined) return '';
+      const s = String(v).trim();
+      if (/^[=+\-@]/.test(s)) return `'${s}`;
+      return s;
+    };
+    const csvEscape = (v: any) => {
+      const s = String(v ?? '');
+      if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+
+    const rows: string[] = [];
+    rows.push(['feederSlot', 'internalPartNumber', 'mpn1', 'quantity', 'createdAt'].join(','));
+    for (const item of bom.items || []) {
+      rows.push([
+        csvEscape(csvSafeValue(item.feederSlot)),
+        csvEscape(csvSafeValue(item.internalPartNumber)),
+        csvEscape(csvSafeValue(item.mpn1)),
+        csvEscape(csvSafeValue(item.quantity)),
+        csvEscape(csvSafeValue(item.createdAt)),
+      ].join(','));
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${(bom.name || 'bom').replace(/[^a-zA-Z0-9._-]/g, '_')}_${req.params.bomId}.csv"`);
+    res.send(rows.join('\r\n'));
+  });
+
+  app.get('/api/boms/:bomId', testAuthMiddleware, (req: any, res: any) => {
+    const bom = mockDB.boms.find(b => b.id === req.params.bomId);
+    if (!bom) return res.status(404).json({ error: 'Not found' });
+    res.json({ data: bom });
   });
 
   app.post('/api/scans', testAuthMiddleware, (req: any, res) => {
@@ -268,6 +358,21 @@ export function createTestApp(): Application {
     const newScan = { id: `scan-${Date.now()}`, sessionId, bomId, stage: 1, createdAt: new Date().toISOString() };
     mockDB.scans.push(newScan);
     res.status(201).json({ data: newScan });
+  });
+
+  // List scans (admin only)
+  app.get('/api/scans', testAuthMiddleware, requireRole(['admin']), (req: any, res) => {
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const offset = parseInt(req.query.offset as string) || 0;
+    const items = mockDB.scans.slice(offset, offset + limit);
+    res.json({ data: items, limit, offset, total: mockDB.scans.length });
+  });
+
+  // Get single scan
+  app.get('/api/scans/:scanId', testAuthMiddleware, requireRole(['admin']), (req: any, res) => {
+    const scan = mockDB.scans.find((s) => s.id === req.params.scanId);
+    if (!scan) return res.status(404).json({ error: 'Not found' });
+    res.json({ data: scan });
   });
 
   app.patch('/api/scans/:scanId', testAuthMiddleware, (req: any, res) => {

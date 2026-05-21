@@ -1,15 +1,5 @@
 import { NextFunction, Response, Request } from 'express';
-import { getCurrentTimestamp } from '../utils';
-
-interface RequestLog {
-  timestamp: string;
-  method: string;
-  url: string;
-  statusCode?: number;
-  duration: number;
-  userId?: string;
-  ipHash?: string;
-}
+import { logger } from '../services/logger';
 
 export function requestLoggerMiddleware(req: Request, res: Response, next: NextFunction): void {
   const startTime = Date.now();
@@ -19,22 +9,17 @@ export function requestLoggerMiddleware(req: Request, res: Response, next: NextF
 
   res.send = function (data: any) {
     const duration = Date.now() - startTime;
-    const log: RequestLog = {
-      timestamp: getCurrentTimestamp(),
-      method: req.method || 'UNKNOWN',
-      url: req.url || '/',
-      statusCode: res.statusCode,
-      duration,
-      userId: req.userId,
-      ipHash: req.ipHash,
-    };
 
-    // Log in structured format
-    if (res.statusCode >= 400) {
-      console.error('Request failed:', JSON.stringify(log));
-    } else {
-      console.log('Request:', JSON.stringify(log));
-    }
+    logger.http(
+      req.method || 'UNKNOWN',
+      req.url || '/',
+      res.statusCode,
+      duration,
+      {
+        userId: req.userId,
+        ipHash: req.ipHash,
+      }
+    );
 
     return originalSend(data);
   };

@@ -1,5 +1,6 @@
 import { db, schema } from '@smt/db';
 import { eq, desc } from 'drizzle-orm';
+import bcrypt from 'bcryptjs';
 
 export async function getUserById(userId: string) {
   const user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1);
@@ -27,7 +28,7 @@ export async function listUsers(limit: number = 50, offset: number = 0) {
 
 export async function createUser(data: {
   email: string;
-  passwordHash: string;
+  password: string;  // CHANGED: accept plaintext password, not hash
   role: string;
   firstName?: string;
   lastName?: string;
@@ -35,9 +36,12 @@ export async function createUser(data: {
   const validRoles = ['admin', 'supervisor', 'qa', 'operator'];
   const role = validRoles.includes(data.role) ? (data.role as any) : 'operator';
   
+  // Hash password with 10 rounds
+  const passwordHash = await bcrypt.hash(data.password, 10);
+  
   const result = await db.insert(schema.users).values({
     email: data.email,
-    passwordHash: data.passwordHash,
+    passwordHash,
     role,
     firstName: data.firstName,
     lastName: data.lastName,
@@ -61,4 +65,34 @@ export async function deleteUser(userId: string) {
     .where(eq(schema.users.id, userId))
     .returning();
   return result[0] || null;
+}
+
+/**
+ * Verify a plaintext password against a bcrypt hash
+ * @param hash - The bcrypt password hash from database
+ * @param plainPassword - The plaintext password to verify
+ * @returns true if password matches, false otherwise
+ */
+export async function verifyUserPassword(hash: string, plainPassword: string): Promise<boolean> {
+  return await bcrypt.compare(plainPassword, hash);
+}
+
+/**
+ * Authenticate a user by email and password
+ * @param email - User email
+ * @param password - Plaintext password
+ * @returns User object if credentials are valid, null otherwise
+ */
+export async function authenticateUser(email: string, password: string) {
+  const user = await getUserByEmail(email);
+  if (!user) {
+    return null;
+  }
+
+  const isPasswordValid = await verifyUserPassword(user.passwordHash, password);
+  if (!isPasswordValid) {
+    return null;
+  }
+
+  return user;
 }

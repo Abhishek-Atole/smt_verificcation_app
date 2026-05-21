@@ -3,6 +3,7 @@ import { db, schema } from '@smt/db';
 import { eq, and, desc, gte, lte } from 'drizzle-orm';
 import { authMiddleware, requireRole } from '../middleware/auth';
 import { ValidationError } from '../errors';
+import { parseISO, isValid, endOfDay } from 'date-fns';
 
 const router = Router();
 
@@ -117,15 +118,18 @@ router.get(
         throw new ValidationError('Missing required query parameters: startDate, endDate');
       }
 
-      const start = new Date(startDate as string);
-      const end = new Date(endDate as string);
+      const start = parseISO(startDate as string);
+      let end = parseISO(endDate as string);
 
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        throw new ValidationError('Invalid date format. Use ISO 8601 format (YYYY-MM-DD)');
+      if (!isValid(start) || !isValid(end)) {
+        throw new ValidationError('Invalid date format. Use YYYY-MM-DD');
       }
 
+      // Ensure end covers the full day
+      end = endOfDay(end);
+
       if (start > end) {
-        throw new ValidationError('startDate must be before endDate');
+        throw new ValidationError('startDate must be before or equal to endDate');
       }
 
       const limit = parseInt(req.query.limit as string) || 5000;

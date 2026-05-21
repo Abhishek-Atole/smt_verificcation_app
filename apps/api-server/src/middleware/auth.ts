@@ -6,19 +6,27 @@ import { AuthError } from '../errors';
 
 export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
   try {
-    const authHeader = req.headers.authorization;
+    // Try to get token from cookie first (preferred)
+    let token = req.cookies?.authToken;
 
-    if (!authHeader) {
-      throw new AuthError('Missing authorization header');
+    // Fallback: try Authorization header for backward compatibility
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader) {
+        const parts = authHeader.split(' ');
+        if (parts.length === 2 && parts[0] === 'Bearer') {
+          token = parts[1];
+        }
+      }
     }
 
-    const parts = authHeader.split(' ');
-    if (parts.length !== 2 || parts[0] !== 'Bearer') {
-      throw new AuthError('Invalid authorization header format');
+    if (!token) {
+      throw new AuthError('Missing authentication token');
     }
 
-    const token = parts[1];
-    const payload = jwt.verify(token, env.JWT_SECRET) as AuthPayload;
+    const payload = jwt.verify(token, env.JWT_SECRET, {
+      algorithms: [env.JWT_ALGORITHM as any],
+    }) as AuthPayload;
 
     req.userId = payload.userId;
     req.userEmail = payload.email;

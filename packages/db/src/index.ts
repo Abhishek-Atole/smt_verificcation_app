@@ -10,13 +10,21 @@ import * as shiftSchemas from './schema/shifts';
 import * as adminSchemas from './schema/admin';
 import * as analyticsSchemas from './schema/analytics';
 import * as referenceSchemas from './schema/references';
+import * as rateLimitSchemas from './schema/rate-limits';
 
 // Create connection pool
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
-  max: 20,
-  idleTimeoutMillis: 30000,
+  max: env.DB_POOL_MAX,
+  min: env.DB_POOL_MIN,
+  idleTimeoutMillis: env.DB_POOL_IDLE_MS,
   connectionTimeoutMillis: 2000,
+});
+
+// Error handling for pool
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
 });
 
 // Initialize Drizzle ORM
@@ -57,6 +65,9 @@ export const schema = {
 
   // References
   partReferences: referenceSchemas.partReferences,
+
+  // Rate Limiting
+  rateLimits: rateLimitSchemas.rateLimits,
 };
 
 // Health check helper

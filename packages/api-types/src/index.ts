@@ -20,7 +20,7 @@ export interface Request {
 }
 
 export interface HealthResponse {
-  status: 'ok' | 'error';
+  status: 'ok' | 'degraded' | 'error';
   timestamp: string;
   database: 'connected' | 'disconnected';
   uptime: number;
@@ -45,3 +45,6 @@ export interface ErrorResponse {
   statusCode: number;
   timestamp: string;
 }
+
+// Export API client
+export { apiClient } from './api-client';

@@ -1,5 +1,6 @@
 import { db, schema } from '@smt/db';
 import { eq, and, desc, gte, lte } from 'drizzle-orm';
+import { logger } from './logger';
 
 // ── Sensitive field names to redact from audit logs ─────────────────────────
 const SENSITIVE_KEYS = new Set([
@@ -87,7 +88,7 @@ export async function recordAuditLog(input: AuditLogInput): Promise<void> {
     await db.insert(schema.auditLogs).values(entry as any);
   } catch (err) {
     // Audit log failure must NEVER break the main operation
-    console.error('[AUDIT] Failed to write audit log:', err);
+    logger.error('Failed to write audit log', err);
   }
 }
 

@@ -1,7 +1,8 @@
 import { createHash } from 'crypto';
+import { env } from '@smt/config';
 
-export function hashIP(ip: string, pepper: string = 'smt-verification'): string {
-  return createHash('sha256').update(ip + pepper).digest('hex');
+export function hashIP(ip: string): string {
+  return createHash('sha256').update(ip + env.HASH_PEPPER).digest('hex');
 }
 
 export function getCurrentTimestamp(): string {

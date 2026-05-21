@@ -207,4 +207,51 @@ describe('BOM Routes', () => {
         .expect(401);
     });
   });
+
+  describe('GET /api/boms/:bomId/export - CSV Export', () => {
+    it('should return CSV with sanitized values for admin', async () => {
+      const createResp = await request(app)
+        .post('/api/boms')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'Export BOM', description: 'for export test' })
+        .expect(201);
+
+      const bomId = createResp.body.data.id;
+
+      // Add an item with potentially dangerous leading chars
+      await request(app)
+        .patch(`/api/boms/${bomId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ items: [{ feederSlot: 1, internalPartNumber: '=CMD', mpn1: '+MPN', quantity: 5, createdAt: new Date().toISOString() }] })
+        .expect(200);
+
+      const resp = await request(app)
+        .get(`/api/boms/${bomId}/export`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(resp.headers['content-type']).toContain('text/csv');
+      expect(resp.headers['content-disposition']).toBeDefined();
+      const csv = resp.text as string;
+      expect(csv).toContain('feederSlot,internalPartNumber,mpn1,quantity,createdAt');
+      // Ensure potentially dangerous leading chars are neutralized (prefixed with single quote)
+      expect(csv).toContain("'=");
+      expect(csv).toContain("'+");
+    });
+
+    it('should deny export for operator role', async () => {
+      const createResp = await request(app)
+        .post('/api/boms')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'Export BOM 2', description: 'for export test' })
+        .expect(201);
+
+      const bomId = createResp.body.data.id;
+
+      await request(app)
+        .get(`/api/boms/${bomId}/export`)
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(401);
+    });
+  });
 });

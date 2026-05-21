@@ -8,10 +8,9 @@ const allowedIPs = new Set<string>();
 
 export function initIPAllowlist(ips: string[]): void {
   allowedIPs.clear();
-  const pepper = 'smt-verification';
 
   for (const ip of ips) {
-    const hashed = hashIP(ip, pepper);
+    const hashed = hashIP(ip);
     allowedIPs.add(hashed);
   }
 }
@@ -29,7 +28,7 @@ export function ipGuardMiddleware(req: Request & any, _res: Response, next: Next
     }
 
     const rawIP = extractIPAddress(req.headers || {});
-    const hashedIP = hashIP(rawIP, 'smt-verification');
+    const hashedIP = hashIP(rawIP);
 
     req.ipHash = hashedIP;
 

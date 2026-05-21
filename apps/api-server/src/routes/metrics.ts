@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import * as metricsRepo from '../repositories/metrics';
 import { authMiddleware, requireRole } from '../middleware/auth';
 import { ValidationError } from '../errors';
+import { parseISO, isValid, endOfDay } from 'date-fns';
 
 const router = Router();
 
@@ -49,6 +50,16 @@ router.get(
 
       if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate as string)) {
         throw new ValidationError('endDate must be in format YYYY-MM-DD');
+      }
+
+      const start = parseISO(startDate as string);
+      let end = parseISO(endDate as string);
+      if (!isValid(start) || !isValid(end)) {
+        throw new ValidationError('Invalid date format. Use YYYY-MM-DD');
+      }
+      end = endOfDay(end);
+      if (start > end) {
+        throw new ValidationError('startDate must be before or equal to endDate');
       }
 
       const metrics = await metricsRepo.getMetricsDateRange(

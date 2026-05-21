@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import * as userRepo from '../repositories/users';
 import { authMiddleware, requireRole } from '../middleware/auth';
 import { ValidationError, NotFoundError, ConflictError } from '../errors';
+import { createUserSchema, updateUserSchema } from '../utils/validation-schemas';
 
 const router = Router();
 
@@ -52,25 +53,24 @@ router.post(
   requireRole('admin'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { email, passwordHash, role, firstName, lastName } = req.body;
-
-      if (!email || !passwordHash || !role) {
-        throw new ValidationError('email, passwordHash, and role are required');
+      // Validate request body
+      const validation = createUserSchema.safeParse(req.body);
+      if (!validation.success) {
+        throw new ValidationError(
+          `Invalid request: ${validation.error.errors.map((e) => `${e.path.join('.')} - ${e.message}`).join('; ')}`
+        );
       }
+
+      const { email, password, role, firstName, lastName } = validation.data;
 
       const existingUser = await userRepo.getUserByEmail(email);
       if (existingUser) {
         throw new ConflictError('User with this email already exists');
       }
 
-      const validRoles = ['admin', 'supervisor', 'qa', 'operator'];
-      if (!validRoles.includes(role)) {
-        throw new ValidationError(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
-      }
-
       const user = await userRepo.createUser({
         email,
-        passwordHash,
+        password,
         role,
         firstName,
         lastName,
@@ -89,12 +89,20 @@ router.patch(
   authMiddleware,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // Validate request body
+      const validation = updateUserSchema.safeParse(req.body);
+      if (!validation.success) {
+        throw new ValidationError(
+          `Invalid request: ${validation.error.errors.map((e) => `${e.path.join('.')} - ${e.message}`).join('; ')}`
+        );
+      }
+
       // Users can update themselves or admins can update anyone
       if (req.userId !== req.params.userId && req.userRole !== 'admin') {
         throw new ValidationError('You can only update your own profile');
       }
 
-      const user = await userRepo.updateUser(req.params.userId, req.body);
+      const user = await userRepo.updateUser(req.params.userId, validation.data);
       if (!user) {
         throw new NotFoundError('User not found');
       }

@@ -1,9 +1,10 @@
 {
   "name": "@smt/admin-desktop",
   "version": "0.1.0",
+  "author": "SMT Verification",
   "description": "Electron desktop admin dashboard (Windows)",
   "type": "module",
-  "main": "./dist/main.js",
+  "main": "./electron/main.mjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -14,9 +15,32 @@
     "electron:dev": "concurrently \"pnpm dev\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "pnpm build && electron-builder"
   },
+  "build": {
+    "appId": "com.smt.verification.admin",
+    "productName": "SMT Verification Admin",
+    "directories": {
+      "output": "release-unsigned-1"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "signDlls": false,
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
+  },
   "dependencies": {
     "@smt/api-types": "workspace:*",
-    "electron": "^28.0.0",
     "react": "catalog:deps",
     "react-dom": "^18.2.0"
   },
@@ -27,6 +51,7 @@
     "@typescript-eslint/parser": "^7.4.0",
     "@vitejs/plugin-react": "^4.2.1",
     "concurrently": "^8.2.2",
+    "electron": "^28.0.0",
     "electron-builder": "^24.6.4",
     "eslint": "catalog:deps",
     "prettier": "catalog:deps",

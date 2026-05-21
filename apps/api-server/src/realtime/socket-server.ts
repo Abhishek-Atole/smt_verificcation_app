@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '@smt/config';
 import { AuthPayload } from '@smt/api-types';
 import { AuthError } from '../errors';
+import { logger } from '../services/logger';
 
 interface SocketData {
   userId: string;
@@ -21,7 +22,9 @@ export function initializeSocketIO(io: Server<any, any, any, SocketData>): void 
         throw new AuthError('No authentication token provided');
       }
 
-      const payload = jwt.verify(token, env.JWT_SECRET) as AuthPayload;
+      const payload = jwt.verify(token, env.JWT_SECRET, {
+        algorithms: [env.JWT_ALGORITHM as any],
+      }) as AuthPayload;
 
       socket.data.userId = payload.userId;
       socket.data.userEmail = payload.email;
@@ -44,6 +47,7 @@ export function initializeSocketIO(io: Server<any, any, any, SocketData>): void 
     }
 
     const rateLimit = socket.data._rateLimit as { count: number; resetAt: number };
+    const rateLimitEvents = env.SOCKET_RATE_LIMIT; // Configurable rate limit
 
     if (Date.now() >= rateLimit.resetAt) {
       rateLimit.count = 1;
@@ -51,9 +55,9 @@ export function initializeSocketIO(io: Server<any, any, any, SocketData>): void 
     } else {
       rateLimit.count++;
 
-      // 2 scan events per second per socket
-      if (rateLimit.count > 2) {
-        next(new Error('Rate limit exceeded'));
+      // Configurable events per second per socket
+      if (rateLimit.count > rateLimitEvents) {
+        next(new Error(`Rate limit exceeded: ${rateLimitEvents} events per second`));
         return;
       }
     }
@@ -63,7 +67,7 @@ export function initializeSocketIO(io: Server<any, any, any, SocketData>): void 
 
   // Connection handlers
   io.on('connection', (socket: Socket<any, any, any, SocketData>) => {
-    console.log(`✅ Socket connected: ${socket.id} (User: ${socket.data.userEmail})`);
+    logger.info('Socket connected', { socketId: socket.id, userEmail: socket.data.userEmail });
 
     // Join user-specific room
     socket.join(`user:${socket.data.userId}`);
@@ -81,7 +85,7 @@ export function initializeSocketIO(io: Server<any, any, any, SocketData>): void 
     // Handle session join
     socket.on('join:session', (sessionId: string) => {
       socket.join(`session:${sessionId}`);
-      console.log(`📍 Socket ${socket.id} joined session:${sessionId}`);
+      logger.info('Socket joined session', { socketId: socket.id, sessionId });
 
       // Notify others in session
       io.to(`session:${sessionId}`).emit('session:operator_joined', {
@@ -94,7 +98,7 @@ export function initializeSocketIO(io: Server<any, any, any, SocketData>): void 
     // Handle session leave
     socket.on('leave:session', (sessionId: string) => {
       socket.leave(`session:${sessionId}`);
-      console.log(`📍 Socket ${socket.id} left session:${sessionId}`);
+      logger.info('Socket left session', { socketId: socket.id, sessionId });
 
       io.to(`session:${sessionId}`).emit('session:operator_left', {
         socketId: socket.id,
@@ -114,12 +118,12 @@ export function initializeSocketIO(io: Server<any, any, any, SocketData>): void 
 
     // Handle disconnect
     socket.on('disconnect', () => {
-      console.log(`❌ Socket disconnected: ${socket.id}`);
+      logger.info('Socket disconnected', { socketId: socket.id });
     });
 
     // Handle errors
     socket.on('error', (error: Error) => {
-      console.error(`❌ Socket error (${socket.id}):`, error.message);
+      logger.error('Socket error', error, { socketId: socket.id });
     });
   });
 }
