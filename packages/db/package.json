@@ -1,0 +1,27 @@
+{
+  "name": "@smt/db",
+  "version": "0.1.0",
+  "description": "Database schema and migrations",
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "db:push": "drizzle-kit push:pg",
+    "db:seed": "tsx src/seed.ts",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "drizzle-orm": "catalog:deps",
+    "pg": "catalog:deps",
+    "zod": "catalog:deps"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.20.14",
+    "typescript": "catalog:deps",
+    "@types/pg": "catalog:deps",
+    "@types/node": "catalog:deps"
+  }
+}

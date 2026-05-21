@@ -1,0 +1,39 @@
+{
+  "name": "smt-verification-desktop",
+  "version": "0.1.0",
+  "description": "Production-grade SMT feeder verification system for PCB assembly",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "eslint .",
+    "test": "pnpm -r run test",
+    "test:coverage": "pnpm -r run test:coverage",
+    "db:push": "pnpm --filter @smt/db run db:push",
+    "db:seed": "pnpm --filter @smt/db run db:seed",
+    "db:studio": "pnpm --filter @smt/db run db:studio"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.4.0",
+    "@typescript-eslint/parser": "^7.4.0",
+    "dotenv": "^17.4.2",
+    "eslint": "catalog:deps",
+    "prettier": "catalog:deps",
+    "typescript": "catalog:deps",
+    "vitest": "catalog:deps"
+  },
+  "keywords": [
+    "smt",
+    "verification",
+    "pcb",
+    "assembly",
+    "feeder",
+    "production"
+  ]
+}
