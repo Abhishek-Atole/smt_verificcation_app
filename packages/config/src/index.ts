@@ -16,6 +16,12 @@ const envSchema = z.object({
   SOCKET_RATE_LIMIT: z.string().default('10').transform(Number),
   RATE_LIMIT_MAX_REQUESTS: z.string().default('100').transform(Number),
   RATE_LIMIT_WINDOW_MS: z.string().default('60000').transform(Number),
+  RATE_LIMIT_REDIS_ENABLED: z
+    .string()
+    .default('false')
+    .transform((value) => value.toLowerCase() === 'true'),
+  REDIS_URL: z.string().url().optional(),
+  RATE_LIMIT_REDIS_PREFIX: z.string().default('smt:rate-limit'),
   DB_POOL_MIN: z.string().default('2').transform(Number),
   DB_POOL_MAX: z.string().default('10').transform(Number),
   DB_POOL_IDLE_MS: z.string().default('30000').transform(Number),

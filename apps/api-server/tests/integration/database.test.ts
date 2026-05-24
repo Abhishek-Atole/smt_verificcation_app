@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { checkDatabaseConnection, db, schema } from '@smt/db';
 import { env } from '@smt/config';
 import { eq } from 'drizzle-orm';
@@ -42,7 +42,7 @@ describe('Database Integration Tests', () => {
   });
 
   describe('Users Table', () => {
-    const testEmail = `test-${Date.now()}@example.com`;
+    const _testEmail = `test-${Date.now()}@example.com`;
 
     it('should query users table', async () => {
       if (!dbAvailable) return;

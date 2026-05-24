@@ -81,7 +81,7 @@ const requireRole = (allowedRoles: string[]) => (req: any, res: any, next: any) 
  * Strip sensitive fields from user object
  */
 function sanitizeUser(user: any) {
-  const { passwordHash, ...rest } = user;
+  const { passwordHash: _passwordHash, ...rest } = user;
   return rest;
 }
 
@@ -544,7 +544,7 @@ export const makeRequest = async (
 /**
  * Assertion helper: expect 200 success response
  */
-export const expectSuccessResponse = (response: any, expectedStatus: number = 200) => {
+export const expectSuccessResponse = (response: any, _expectedStatus: number = 200) => {
   expect([200, 201, 204]).toContain(response.status);
   if (response.status !== 204) {
     expect(response.body).toBeDefined();

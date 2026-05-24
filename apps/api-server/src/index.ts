@@ -15,6 +15,7 @@ import sessionsRouter from './routes/sessions';
 import metricsRouter from './routes/metrics';
 import scansRouter from './routes/scans';
 import auditRouter from './routes/audit';
+import internalRouter from './routes/internal';
 import { rateLimitMiddleware } from './middleware/rate-limit';
 import { requestLoggerMiddleware } from './middleware/request-logger';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
@@ -22,12 +23,27 @@ import { extractIPAddress, hashIP } from './utils';
 import { securityHeadersMiddleware } from './middleware/security-headers';
 import { csrfMiddleware } from './middleware/csrf';
 import { logger } from './services/logger';
+import { setSocketIO } from './services/logger';
 
 const app: Application = express();
 const httpServer = createServer(app);
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: (origin, callback) => {
+      // Allow missing/null origin in development (Electron file:// or devtools)
+      if (!origin) {
+        if (env.NODE_ENV === 'production') {
+          callback(new Error('CORS origin missing'));
+          return;
+        }
+        callback(null, true);
+        return;
+      }
+
+      const allowed = ['http://localhost:5173', 'http://localhost:3000'];
+      if (allowed.includes(origin)) callback(null, true);
+      else callback(new Error('Not allowed by CORS'));
+    },
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -65,10 +81,31 @@ app.use((req: any, _res, next) => {
 
 app.use(
   cors({
-    origin: ALLOWED_ORIGINS,
+    origin: (origin, callback) => {
+      // Allow null/undefined origin (file:// / Electron) in development
+      if (!origin) {
+        if (env.NODE_ENV === 'production') {
+            logger.warn('CORS: missing origin in production', { origin });
+            callback(new Error('CORS origin missing'));
+          return;
+        }
+          logger.debug('CORS: allowing missing/null origin in development', { origin });
+          callback(null, true);
+        return;
+      }
+        if (ALLOWED_ORIGINS.includes(origin)) {
+          logger.debug('CORS: origin allowed', { origin });
+          callback(null, true);
+          return;
+        }
+
+        logger.warn('CORS: origin not allowed', { origin });
+        callback(new Error('Not allowed by CORS'));
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token'],
+    exposedHeaders: ['x-csrf-token'],
     maxAge: 3600,
   })
 );
@@ -81,6 +118,8 @@ app.set('io', io as any);
 
 // Initialize Socket.IO
 initializeSocketIO(io);
+// expose io to logger so logs can be pushed to connected clients
+setSocketIO(io);
 
 // Routes - API v1
 app.use('/api/v1/auth', authRouter);
@@ -91,10 +130,28 @@ app.use('/api/v1/sessions', sessionsRouter);
 app.use('/api/v1/metrics', metricsRouter);
 app.use('/api/v1/scans', scansRouter);
 app.use('/api/v1/audit', auditRouter);
+app.use('/internal', internalRouter);
 
 // Health endpoint at root level for load balancers
 app.get('/health', (_req: any, res: any) => {
   res.json({ status: 'ok', service: 'api-server' });
+});
+
+// Readiness endpoint: verifies dependent services (DB) are available
+app.get('/ready', async (_req: any, res: any) => {
+  try {
+    const ok = await checkDatabaseConnection();
+    if (!ok) {
+      logger.warn('Readiness check failed: database unavailable');
+      res.status(503).json({ status: 'unavailable', reason: 'database' });
+      return;
+    }
+
+    res.json({ status: 'ready' });
+  } catch (err) {
+    logger.error('Readiness check error', err as any);
+    res.status(500).json({ status: 'error' });
+  }
 });
 
 // 404 handler
@@ -128,51 +185,56 @@ const startServer = async (): Promise<void> => {
   }
 };
 
-// Handle graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully...');
-  httpServer.close(async () => {
-    logger.info('HTTP server closed');
-    try {
-      // Close database pool
-      const { db } = await import('@smt/db');
-      // Get the underlying pool from Drizzle
-      await (db as any).$client.end();
-      logger.info('Database pool closed');
-    } catch (err) {
-      logger.error('Error closing database:', err);
-    }
-    process.exit(0);
-  });
-  
-  // Force shutdown after 10 seconds
-  setTimeout(() => {
-    logger.error('Forced shutdown after 10s timeout');
+// Consolidated graceful shutdown handler
+async function performShutdown(reason = 'shutdown') {
+  try {
+    logger.info(`Shutdown initiated: ${reason}`);
+    // stop accepting new connections
+    httpServer.close(async (err?: Error) => {
+      if (err) {
+        logger.error('Error closing HTTP server', err);
+      } else {
+        logger.info('HTTP server closed');
+      }
+
+      try {
+        const { db } = await import('@smt/db');
+        if ((db as any)?.$client && typeof (db as any).$client.end === 'function') {
+          await (db as any).$client.end();
+          logger.info('Database pool closed');
+        }
+      } catch (dbErr) {
+        logger.error('Error closing database during shutdown', dbErr);
+      }
+
+      // flush any in-memory logs (best-effort)
+      logger.info('Shutdown complete, exiting process');
+      process.exit(0);
+    });
+
+    // Force exit if graceful shutdown takes too long
+    setTimeout(() => {
+      logger.error('Forced shutdown after 10s timeout');
+      process.exit(1);
+    }, 10_000).unref();
+  } catch (e) {
+    logger.error('performShutdown failed', e);
     process.exit(1);
-  }, 10_000).unref();
+  }
+}
+
+process.on('SIGTERM', () => performShutdown('SIGTERM'));
+process.on('SIGINT', () => performShutdown('SIGINT'));
+
+// Handle unexpected errors and attempt to shutdown gracefully
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled Promise rejection', reason as any);
+  performShutdown('unhandledRejection');
 });
 
-process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully...');
-  httpServer.close(async () => {
-    logger.info('HTTP server closed');
-    try {
-      // Close database pool
-      const { db } = await import('@smt/db');
-      // Get the underlying pool from Drizzle
-      await (db as any).$client.end();
-      logger.info('Database pool closed');
-    } catch (err) {
-      logger.error('Error closing database:', err);
-    }
-    process.exit(0);
-  });
-  
-  // Force shutdown after 10 seconds
-  setTimeout(() => {
-    logger.error('Forced shutdown after 10s timeout');
-    process.exit(1);
-  }, 10_000).unref();
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception', err);
+  performShutdown('uncaughtException');
 });
 
 // Export for testing

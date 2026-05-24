@@ -1,7 +1,11 @@
 import ReactDOM from 'react-dom/client';
+import { useState } from 'react';
 import './index.css';
+import LogViewer from './LogViewer';
 
 function App() {
+  const [isModalOpen, setIsModalOpen] = useState(true);
+
   const users = [
     {
       initials: 'EK',
@@ -203,6 +207,8 @@ function App() {
               </table>
             </div>
           </section>
+
+          <LogViewer />
         </div>
 
         <footer className="statusbar">
@@ -218,6 +224,7 @@ function App() {
         </footer>
       </main>
 
+      {isModalOpen ? (
       <div className="modal-overlay" role="presentation">
         <div className="modal-shell" role="dialog" aria-modal="true" aria-labelledby="add-user-title">
           <div className="modal-header">
@@ -225,7 +232,7 @@ function App() {
               <h3 id="add-user-title">Add New System User</h3>
               <p>Define account credentials and computational permissions.</p>
             </div>
-            <button type="button" className="icon-button" aria-label="Close dialog">
+            <button type="button" className="icon-button" aria-label="Close dialog" onClick={() => setIsModalOpen(false)}>
               close
             </button>
           </div>
@@ -315,6 +322,7 @@ function App() {
           </div>
         </div>
       </div>
+      ) : null}
     </div>
   );
 }

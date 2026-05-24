@@ -69,8 +69,11 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
  * This is NOT secure and should only be used in development mode
  * Sets JWT token as HttpOnly cookie
  * Rate limited: 10 attempts per 15 minutes per IP
+ *
+ * Enabled by default in development so the Electron renderer bootstrap can
+ * authenticate without requiring a preconfigured env flag.
  */
-if (env.NODE_ENV !== 'production') {
+if (env.NODE_ENV !== 'production' && (env as any).ALLOW_TEST_LOGIN !== 'false') {
   router.post('/test-login', testLoginRateLimiter, async (_req: Request, res: Response, next: NextFunction) => {
     try {
       // For development/testing only - create an admin token

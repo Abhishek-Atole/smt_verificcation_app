@@ -2,6 +2,8 @@ import { db, schema } from '@smt/db';
 import { eq, desc } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('invalid-password-for-timing', 10);
+
 export async function getUserById(userId: string) {
   const user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1);
   return user[0] || null;
@@ -86,6 +88,8 @@ export async function verifyUserPassword(hash: string, plainPassword: string): P
 export async function authenticateUser(email: string, password: string) {
   const user = await getUserByEmail(email);
   if (!user) {
+    // Run a bcrypt comparison even when the user does not exist to reduce timing differences.
+    await bcrypt.compare(password, DUMMY_PASSWORD_HASH);
     return null;
   }
 

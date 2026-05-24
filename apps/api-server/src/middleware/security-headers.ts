@@ -32,8 +32,8 @@ export function securityHeadersMiddleware(req: Request, res: Response, next: Nex
     'geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()'
   );
 
-  // Disable caching for sensitive content
-  if (req.url.includes('/api/auth') || req.url.includes('/api/users')) {
+  // Disable caching for sensitive content (match v1 API paths)
+  if (req.url.includes('/api/v1/auth') || req.url.includes('/api/v1/users')) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');

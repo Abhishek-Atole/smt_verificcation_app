@@ -35,13 +35,23 @@ router.get(
   authMiddleware,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      // Only allow admins or the user themselves to view the record
+      if (req.userRole !== 'admin' && req.userId !== req.params.userId) {
+        return res.status(403).json({ error: 'FORBIDDEN' });
+      }
+
       const user = await userRepo.getUserById(req.params.userId);
       if (!user) {
         throw new NotFoundError('User not found');
       }
-      res.json({ data: user });
+
+      // sanitize sensitive fields
+      const safeUser = { ...user } as any;
+      if ('passwordHash' in safeUser) delete safeUser.passwordHash;
+
+      return res.json({ data: safeUser });
     } catch (err) {
-      next(err);
+      return next(err);
     }
   }
 );

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { env } from '@smt/config';
 import request from 'supertest';
 import { createTestApp, getTestToken } from './fixtures';
@@ -39,7 +39,7 @@ describe('API Health Endpoint', () => {
 });
 
 describe('Authentication Flow', () => {
-  let authToken: string | null = null;
+  let _authToken: string | null = null;
 
   it('should get test auth token in development', async () => {
     if (env.NODE_ENV === 'production') {
@@ -58,10 +58,10 @@ describe('Authentication Flow', () => {
     // The real dev endpoint doesn't return a token; when using the in-memory
     // fixture app, generate a test token directly.
     if (appClient !== null) {
-      authToken = getTestToken('admin');
+      _authToken = getTestToken('admin');
     } else {
       const data = await response.json();
-      authToken = data.data?.token;
+      _authToken = data.data?.token;
     }
   });
 

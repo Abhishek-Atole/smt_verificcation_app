@@ -41,22 +41,31 @@
   },
   "dependencies": {
     "@smt/api-types": "workspace:*",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.16.0",
     "react": "catalog:deps",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^7.15.1"
   },
   "devDependencies": {
-    "@types/react": "^18.2.43",
-    "@types/react-dom": "^18.2.17",
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/react": "^14.0.0",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
     "@typescript-eslint/eslint-plugin": "^7.4.0",
     "@typescript-eslint/parser": "^7.4.0",
     "@vitejs/plugin-react": "^4.2.1",
     "concurrently": "^8.2.2",
-    "electron": "^28.0.0",
+    "electron": "^42.2.0",
     "electron-builder": "^24.6.4",
     "eslint": "catalog:deps",
+    "jsdom": "^22.1.0",
     "prettier": "catalog:deps",
     "typescript": "catalog:deps",
     "vite": "catalog:deps",
     "wait-on": "^7.0.1"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0"
   }
 }

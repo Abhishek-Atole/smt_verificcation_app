@@ -134,13 +134,13 @@ describe('End-to-End Workflows', () => {
       const bomId = bomResp.body.data.id;
 
       // Retrieve BOM
-      const getResp = await request(app)
+      const _getResp = await request(app)
         .get(`/api/boms/${bomId}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
       // Update BOM
-      const updateResp = await request(app)
+      const _updateResp = await request(app)
         .patch(`/api/boms/${bomId}`)
         .set('Authorization', `Bearer ${supervisorToken}`)
         .send({ name: 'Updated Name' })

@@ -16,6 +16,14 @@ export function initializeSocketIO(io: Server<any, any, any, SocketData>): void 
   // Middleware: JWT authentication
   io.use((socket, next) => {
     try {
+      const originHeader = socket.handshake.headers?.origin as string | undefined;
+      logger.debug('Socket handshake', { socketId: socket.id, origin: originHeader });
+
+      // In production reject missing or unexpected origins early.
+      if (env.NODE_ENV === 'production' && (!originHeader || originHeader === 'null')) {
+        throw new AuthError('Socket connection origin is not allowed');
+      }
+
       const token = socket.handshake.auth.token;
 
       if (!token) {
@@ -24,14 +32,40 @@ export function initializeSocketIO(io: Server<any, any, any, SocketData>): void 
 
       const payload = jwt.verify(token, env.JWT_SECRET, {
         algorithms: [env.JWT_ALGORITHM as any],
-      }) as AuthPayload;
+      }) as AuthPayload & { aud?: string; iss?: string; allowedRooms?: string[] };
 
-      socket.data.userId = payload.userId;
-      socket.data.userEmail = payload.email;
-      socket.data.userRole = payload.role;
+      // Validate audience/issuer
+      if (payload.aud && payload.aud !== 'socket') {
+        throw new AuthError('Invalid token audience');
+      }
+
+      // Attach user info and allowedRooms to socket data
+      socket.data.userId = payload.userId || (payload as any).sub || 'unknown';
+      socket.data.userEmail = payload.email || '';
+      socket.data.userRole = payload.role || 'user';
+      (socket.data as any).allowedRooms = Array.isArray((payload as any).allowedRooms) ? (payload as any).allowedRooms : [];
 
       next();
     } catch (error) {
+      // Log socket auth failure with context
+      try {
+        // Redact handshake headers to avoid leaking cookies, auth tokens, or other secrets
+        const redactedHandshake = socket.handshake
+          ? {
+              address: socket.handshake.address,
+              origin: socket.handshake.headers?.origin,
+              userAgent: socket.handshake.headers?.['user-agent'],
+            }
+          : undefined;
+
+        logger.warn('Socket auth failure', {
+          error: error instanceof Error ? error.message : String(error),
+          handshake: redactedHandshake,
+        });
+      } catch (e) {
+        // ignore logging errors
+      }
+
       if (error instanceof Error) {
         next(new Error(error.message));
       } else {
@@ -84,7 +118,15 @@ export function initializeSocketIO(io: Server<any, any, any, SocketData>): void 
 
     // Handle session join
     socket.on('join:session', (sessionId: string) => {
-      socket.join(`session:${sessionId}`);
+      const room = `session:${sessionId}`;
+      // Enforce allowedRooms if present
+      const allowed = (socket.data as any).allowedRooms as string[] | undefined;
+      if (allowed && allowed.length > 0 && !allowed.includes(room) && (socket.data.userRole !== 'admin')) {
+        logger.warn('Socket attempted to join unauthorized session', { socketId: socket.id, sessionId });
+        return;
+      }
+
+      socket.join(room);
       logger.info('Socket joined session', { socketId: socket.id, sessionId });
 
       // Notify others in session
