@@ -2,6 +2,8 @@ import { db, schema } from '@smt/db';
 import { eq, desc } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('invalid-password', 10);
+
 export async function getUserById(userId: string) {
   const user = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1);
   return user[0] || null;
@@ -85,11 +87,8 @@ export async function verifyUserPassword(hash: string, plainPassword: string): P
  */
 export async function authenticateUser(email: string, password: string) {
   const user = await getUserByEmail(email);
-  if (!user) {
-    return null;
-  }
-
-  const isPasswordValid = await verifyUserPassword(user.passwordHash, password);
+  const passwordHash = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
+  const isPasswordValid = await verifyUserPassword(passwordHash, password);
   if (!isPasswordValid) {
     return null;
   }

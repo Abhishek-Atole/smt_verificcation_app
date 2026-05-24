@@ -103,7 +103,10 @@ class ApiClient {
         };
       }
 
-      return { data };
+      const normalizedData =
+        data && typeof data === 'object' && 'data' in data ? (data as { data: T }).data : data;
+
+      return { data: normalizedData };
     } catch (error: unknown) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         return {

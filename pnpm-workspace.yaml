@@ -2,6 +2,11 @@ packages:
   - 'apps/*'
   - 'packages/*'
 
+allowBuilds:
+  electron: true
+  es5-ext: true
+  esbuild: true
+
 catalogs:
   deps:
     typescript: 5.4.5

@@ -17,12 +17,10 @@ describe('Database Integration Tests', () => {
         // warn and continue; tests that require DB will be no-ops
         // instead of throwing and failing the whole suite.
         // This is useful for environments without Docker/Postgres.
-        // eslint-disable-next-line no-console
         console.warn('Database not available; skipping DB-dependent checks');
       }
     } catch (err) {
       // treat any error as DB unavailable
-      // eslint-disable-next-line no-console
       console.warn('Error checking database connection; skipping DB-dependent checks');
       dbAvailable = false;
     }

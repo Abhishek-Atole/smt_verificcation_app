@@ -1,5 +1,3 @@
-/* eslint-disable no-unused-vars */
-
 import 'express';
 
 // Type augmentation for Express.Request to include custom auth properties
