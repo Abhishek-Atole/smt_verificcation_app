@@ -1,0 +1,50 @@
+{
+  "name": "@smt/api-server",
+  "version": "0.1.0",
+  "description": "Express API server with Socket.IO real-time",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@smt/api-types": "workspace:*",
+    "@smt/config": "workspace:*",
+    "@smt/db": "workspace:*",
+    "@types/cors": "^2.8.19",
+    "bcryptjs": "catalog:deps",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.6",
+    "date-fns": "^2.30.0",
+    "drizzle-orm": "catalog:deps",
+    "express": "catalog:deps",
+    "ioredis": "^5.10.1",
+    "jsonwebtoken": "catalog:deps",
+    "pg": "catalog:deps",
+    "socket.io": "catalog:deps",
+    "uuid": "^9.0.0",
+    "zod": "catalog:deps"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.7",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^20.11.0",
+    "@types/supertest": "^2.0.12",
+    "@typescript-eslint/eslint-plugin": "^7.4.0",
+    "@typescript-eslint/parser": "^7.4.0",
+    "eslint": "catalog:deps",
+    "prettier": "catalog:deps",
+    "supertest": "^6.3.3",
+    "tsx": "^4.7.0",
+    "typescript": "catalog:deps",
+    "vitest": "catalog:deps"
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "name": "@smt/admin-desktop",
+  "version": "0.1.0",
+  "author": "SMT Verification",
+  "description": "Electron desktop admin dashboard (Windows)",
+  "type": "module",
+  "main": "./electron/main.mjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "electron": "electron .",
+    "electron:dev": "concurrently \"pnpm dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:build": "pnpm build && electron-builder"
+  },
+  "build": {
+    "appId": "com.smt.verification.admin",
+    "productName": "SMT Verification Admin",
+    "directories": {
+      "output": "release-unsigned-1"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "signDlls": false,
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "@smt/api-types": "workspace:*",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.16.0",
+    "react": "catalog:deps",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^7.15.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/react": "^14.0.0",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@typescript-eslint/eslint-plugin": "^7.4.0",
+    "@typescript-eslint/parser": "^7.4.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^42.2.0",
+    "electron-builder": "^24.6.4",
+    "eslint": "catalog:deps",
+    "jsdom": "^22.1.0",
+    "prettier": "catalog:deps",
+    "typescript": "catalog:deps",
+    "vite": "catalog:deps",
+    "wait-on": "^7.0.1"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0"
+  }
+}
